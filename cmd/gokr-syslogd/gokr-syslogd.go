@@ -216,7 +216,7 @@ func gokrsyslogd() error {
 			"/perm/syslogd",
 			"directory to which to write syslog to")
 
-		listenAddr = flag.String("listen",
+		listenAddrs = flag.String("listen",
 			"127.0.0.1:5514",
 			"[host]:port listen address")
 	)
@@ -247,14 +247,17 @@ func gokrsyslogd() error {
 	// RFC3164 seems to be what Go’s standard library log/syslog package uses.
 	// The other two available formats (RFC6587, RFC5424) result in garbage.
 	syslogsrv.SetFormat(syslog.RFC3164)
-	if err := syslogsrv.ListenUDP(*listenAddr); err != nil {
-		return err
+	addrs := strings.Split(*listenAddrs, ",")
+	for _, addr := range addrs {
+		if err := syslogsrv.ListenUDP(addr); err != nil {
+			return err
+		}
 	}
 	syslogsrv.SetHandler(syslog.NewChannelHandler(channel))
 	if err := syslogsrv.Boot(); err != nil {
 		return err
 	}
-	log.Printf("writing to %s all remote syslog received on %s", *outdir, *listenAddr)
+	log.Printf("writing to %s all remote syslog received on %s", *outdir, *listenAddrs)
 
 	// Every 100 syslog messages, look through currently open files to close
 	// unused ones.
