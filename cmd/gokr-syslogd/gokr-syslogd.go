@@ -210,6 +210,22 @@ func (s *server) deleteOldLogs() error {
 	return nil
 }
 
+func configLocalClient(listenAddr string) {
+	if _, err := os.Stat("/perm"); os.IsNotExist(err) {
+		return
+	}
+	if _, err := os.Stat("/perm/remote_syslog/target"); err == nil {
+		return
+	}
+	if err := os.Mkdir("/perm/remote_syslog", 0755); err != nil {
+		log.Printf("error creating directory /perm/remote_syslog: %v", err)
+		return
+	}
+	if err := os.WriteFile("/perm/remote_syslog/target", []byte(listenAddr), 0644); err != nil {
+		log.Printf("error writing to /perm/remote_syslog/target: %v", err)
+	}
+}
+
 func gokrsyslogd() error {
 	var (
 		outdir = flag.String("outdir",
@@ -258,6 +274,9 @@ func gokrsyslogd() error {
 		return err
 	}
 	log.Printf("writing to %s all remote syslog received on %s", *outdir, *listenAddrs)
+
+	// Unless otherwise configured, use this service as syslog for the target instance
+	go configLocalClient(addrs[0])
 
 	// Every 100 syslog messages, look through currently open files to close
 	// unused ones.
